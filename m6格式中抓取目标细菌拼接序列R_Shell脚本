@@ -1,0 +1,48 @@
+#输出m6格式文件
+blastn -query Burger2_Maxbin_binned.concat.fasta -db ~/softwar/ncbi-blast-2.7.1+/bin/nt -num_threads 20 -outfmt 6 -out Burger2.m6.blast
+#首先把本地blast输出的m6格式文件中的Subject ID单独输出
+awk '{print($2)}' Burger2.m6.blast > Burger2_ID.txt
+#下载Burger2_ID.txt至本地计算机，操作R语言脚本
+mybac<-read.table("Burger2_ID.txt")
+bacteria<-list()
+for (i in 1:nrow(mybac)) {
+    id<-mybac[i,1]
+    id<-as.character(id)
+    bacteria[[id]]<-c(bacteria[[id]],i)
+}
+mybacteria<-NULL
+for (j in names(bacteria)) {
+  a<-length(bacteria[[j]])
+  mybacteria<-c(mybacteria,j,a)
+}
+mybacteria<-matrix(mybacteria,ncol = 2,byrow = T)
+library(rvest)
+bacspe<-NULL
+for (i in 1:nrow(mybacteria)) {
+  url<-paste("https://www.ncbi.nlm.nih.gov/search/?term=",mybacteria[i,1],sep = "")
+  myinfo<-read_html(url)
+  b<-myinfo%>%
+    html_nodes(css = ".ncbi-doc-authors")%>%
+    html_text()
+  if(length(b)==1){bacspe<-c(bacspe,b)}
+  else(bacspe<-c(bacspe,NA))
+}
+mybacteria<-cbind(mybacteria,bacspe)
+mybacteria<-as.data.frame(mybacteria)
+write.table(mybacteria,"Burger2_identify.txt",sep = "\t")
+#将R语言输出的文件用Excel打开去掉第一列和第一行，重新写入txt上传至服务器，对上传的文件进行awk操作提取炭疽的Subject ID
+awk -F '\t' '{if($3~/Bacillus.anthracis/){print($1)}}' Burger2_identify.txt > Bacillus.txt
+#将提取到的炭疽的Subject ID批量在本地blast的m6格式文件中抓取对应的拼接序列ID
+for i in `cat Bacillus.txt`; do grep $i Burger2.m6.blast; done > Bacillus_query.txt
+#只将第一列对应拼接序列的query ID提取
+awk '{print($1)}' Bacillus_query.txt > Bacillus_query_id.txt
+#排序
+sort -n Bacillus_query_id.txt > Bacillus_sort_query_id.txt
+#去重复行
+uniq Bacillus_sort_query_id.txt Bacillus_uni_query_id.txt
+#先将拼接的fasta序列按照每条fasta序列一行的方式合并
+awk '/^>/&&NR>1{print "";}{ printf "%s",/^>/ ? $0" ":$0 }'  Burger2_Maxbin_binned.concat.fasta > Burger2_Maxbin_binned.concat_1line.fasta
+#批量提取合并为一行后的目标序列
+for i in `cat Bacillus_uni_query_id.txt`; do grep $i Burger2_Maxbin_binned.concat_1line.fasta; done > Bacillus_seq.fasta
+#将提取得到的目标序列文件转化为标准fasta格式
+awk '{if($1~/>/){print($1" " $2"\n" $3)}}' Bacillus_seq.fasta > Bacillus_standard_seq.fasta
