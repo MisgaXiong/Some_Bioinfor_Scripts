@@ -1,0 +1,51 @@
+library(Biostrings)
+phagegff3<-read.table("鲍曼不动杆菌tail_fibril.txt",sep = "\t")
+phagegenome<-readDNAStringSet("NCBI41条鲍曼不动杆菌噬菌体序列和P53.fasta")
+id<-names(phagegenome)
+id<-id[-42]
+id3<-NULL
+for (i in 1:length(id)) {
+  id2<-strsplit(id,split=" ")
+  id3<-c(id3,id2[[i]][1])
+}
+phagegff3<-as.matrix(phagegff3)
+gff3id<-NULL
+for (j in 1:nrow(phagegff3)) {
+  gff3id<-c(gff3id,phagegff3[j,1])
+}
+gff3id<-as.character(gff3id)
+comid<-intersect(id3,gff3id)
+comseqid<-NULL
+for (i in 1:length(id3)) {
+  for (j in 1:length(comid)) {
+    if(id3[i]==comid[j]){comseqid<-c(comseqid,i)}
+    else{comseqid<-comseqid}
+  }
+}
+tailfibseq<-DNAStringSet()
+for(j in comseqid){
+  tailfibseq<-c(tailfibseq,DNAStringSet(phagegenome[j]))
+}
+out27D<-tempfile()
+writeXStringSet(tailfibseq,out27D)
+out27D#根据路径找文件修改文件名，上传服务器
+tailfibloc<-read.table("鲍曼不动杆菌tail_fibril_loc.txt")
+bmtailseq<-DNAStringSet()
+for (i in 1:length(comid)) {
+  for (j in 1:nrow(tailfibloc)) {
+    if(comid[i]==tailfibloc[j,1]){
+      for (k in j) {
+        l<-tailfibloc[j,2]
+        r<-tailfibloc[j,3]
+        a<-DNAStringSet()
+        a<-DNAStringSet(tailfibseq[[i]][l:r])
+        names(a)<-paste(j,names(tailfibseq[i]),sep = " ")
+        bmtailseq<-c(bmtailseq,DNAStringSet(a))
+      }
+    }
+  }
+}
+outtail<-tempfile()
+writeXStringSet(bmtailseq,outtail)
+outtail
+#在服务器使用clustalw2输出tree文件，下载至本地使用Fig tree打开
