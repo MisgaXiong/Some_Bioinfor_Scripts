@@ -1,0 +1,29 @@
+#批量从megahit拼接文件中抓取本地blast的query序列
+library(stringr)
+library(Biostrings)
+setwd("D:/test")
+dir1.name<-dir('D:/test/megahit_res')
+dir2.name<-dir('D:/test/blastn')
+a<-NULL
+b<-NULL
+for (i in 1:length(dir1.name)) {
+  setwd("D:/test/megahit_res")
+  myqueryseq<-readDNAStringSet(dir1.name[i])
+  setwd("D:/test/blastn")
+  myqueryid<-read.table(dir2.name[i],sep = "\t")
+  outseq<-DNAStringSet()
+  Outseq<-DNAStringSet()
+  for (j in 1:nrow(myqueryid)) {
+    if(myqueryid[j,5]>=800){
+      for (k in 1:length(myqueryseq)) {
+        idname<-strsplit(names(myqueryseq[k])," ")
+        if(myqueryid[j,1]==idname[[1]][1]){
+          outseq<-c(outseq,DNAStringSet(myqueryseq[k]))
+        }else{b<-b+1}
+      }
+    }else{a<-a+1}
+  }
+  outseqfile<-tempfile()
+  writeXStringSet(outseq,outseqfile)
+  outseqfile
+}
