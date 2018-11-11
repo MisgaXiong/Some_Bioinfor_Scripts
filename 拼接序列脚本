@@ -1,0 +1,26 @@
+#此脚本运行前提条件需要预处理数据，删掉序列的差异位点。仅适用于部分病毒序列
+library(Biostrings)
+seq<-readAAStringSet("云龙兄.fasta")
+seq1<-seq[1:6,]
+AAseqarry<-NULL
+for (i in 1:length(seq1)) {
+  AAseq<-toString(seq1[i])
+  AAseq2<-strsplit(AAseq,"")
+  AAseqarry<-rbind(AAseqarry,AAseq2[[1]])
+}
+LAAseq<-NULL
+AA<-c("A","R","D","C","Q","E","H","I","G","N","L","K","M","F","P","S","T","W","Y","V","*")
+for (i in 1:ncol(AAseqarry)) {
+  xbp<-AAseqarry[,i]
+    if(length(intersect(AA,xbp))>=1){
+      LAAseq<-c(LAAseq,intersect(AA,xbp))
+    }else{LAAseq<-c(LAAseq,"-")}
+}
+LAAfasta<-NULL
+for (i in 1:length(LAAseq)) {
+  LAAfasta<-paste(LAAfasta,LAAseq[i],sep = "")
+}
+LAAfasta<-AAStringSet(LAAfasta)
+names(LAAfasta)<-names(seq1[1])
+AAout<-tempfile()
+writeXStringSet(LAAfasta,AAout)
