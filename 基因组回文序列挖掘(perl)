@@ -1,0 +1,52 @@
+#! /usr/bin/perl
+use strict;
+use warnings;
+use Bio::Seq;
+use Bio::SeqIO;
+$in = Bio::SeqIO->new(-file => "C:\\Users\\admin\\Desktop\\华大拼接序列\\1-pb1.fasta", -format => 'Fasta');
+$totalseq = $in -> next_seq;
+$longseq = $totalseq -> seq;
+$nameseq = $totalseq -> display_name;
+$longseq = uc($longseq)
+undef @longseq;
+for($i=0; $i < length($longseq); $i = $i + 1,){
+ @longseq[$i] = substr($longseq, $i, 1);
+}
+sub comp{
+ undef $cmcha;
+ for($i=0; $i < scalar(@_); $i = $i + 1, ){
+	if(@_[$i] eq "A"){$cmcha = $cmcha . "T"}
+	elsif(@_[$i] eq "T"){$cmcha = $cmcha . "A"}
+	elsif(@_[$i] eq "C"){$cmcha = $cmcha . "G"}
+	elsif(@_[$i] eq "G"){$cmcha = $cmcha . "C"}
+	else{$cmcha = $cmcha};
+ }; return $cmcha;
+}
+$longseq2 = comp(@longseq)
+undef @doubleseq
+for($i=0; $i < length($longseq); $i = $i + 1, ){
+ for($j=6; $j < length($longseq); $j = $j + 1, ){
+  $seq1 = substr($longseq, $i, $j);
+  $seq2 = substr($longseq2, $i, $j);
+  $A = $seq1;
+  $B = reverse($seq2);
+  if(substr($A, 0, length($A)) eq substr($B, 0, length($B))){@doubleseq = (@doubleseq, $seq1)}
+  else{@doubleseq = @doubleseq};
+ };
+}
+undef @oddseq
+$longseq2 = comp(@longseq);
+for($i=0; $i < length($longseq); $i = $i + 1, ){
+ for($j=7; $j < length($longseq) - $i; $j = $j + 1, ){
+  $seq1 = substr($longseq, $i, $j);
+  $seq2 = substr($longseq2, $i, $j);
+  $A = $seq1;
+  $B = reverse($seq2);
+  $k = 0; 
+  $m = (length($seq1) - 1)/2 - 1;
+  $l = (length($seq2) - 1)/2 + 1;
+  $n = length($seq2);
+  if(substr($A, $k, $m) eq substr($B, $k, $m) && substr($A, $l, $n) eq substr($B, $l, $n)){@oddseq = (@oddseq, $A)}
+  else{@doubleseq = @doubleseq};
+ };
+}
