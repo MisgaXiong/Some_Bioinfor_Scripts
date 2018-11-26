@@ -1,0 +1,100 @@
+blastres<-read.table("spades_raw-pCD_blast.txt")  
+blastres2<-NULL
+#统一subject序列位置信息的方向
+for (i in 1:nrow(blastres)) {
+  dl<-blastres[i,9]
+  dr<-blastres[i,10]
+  if(blastres[i,9]>blastres[i,10]){blastres[i,c(9:10)]<-cbind(dr,dl)}
+}
+#保留相似度大于90%的序列
+db<-NULL
+for (j in 1:nrow(blastres)) {
+  if(blastres[j,3]>90){blastres2<-rbind(blastres2,blastres[j,])}
+}
+#提取非冗余比对序列位置信息，将局部冗余序列的非冗余比对的query位置进行计算
+for (i in 1:nrow(blastres2)) {
+  m<-blastres2[i,9]
+  n<-blastres2[i,10]
+  mn<-c(m:n)
+  t<-db
+  if(length(intersect(db,mn))==0){db<-c(db,mn)}
+  else if(length(intersect(db,mn))<length(mn)){db<-c(db,setdiff(mn,intersect(db,mn)))}
+  if(length(db)-length(t)==length(mn)){blastres2[i,]<-blastres2[i,]}
+  else if(length(db)-length(t)<length(mn)){if(max(mn) %in% t){blastres2[i,8]<-(blastres2[i,8]-length(intersect(t,mn)))}}
+  else if(length(db)-length(t)<length(mn)){if(min(mn) %in% t){blastres2[i,7]<-(blastres2[i,7]+length(intersect(t,mn)))}}
+}
+#将局部冗余序列的非冗余比对的subject位置进行计算
+db<-NULL
+for (i in 1:nrow(blastres2)) {
+  m<-blastres2[i,9]
+  n<-blastres2[i,10]
+  mn<-c(m:n)
+  t<-db
+  if(length(intersect(db,mn))==0){db<-c(db,mn)}
+  else if(length(intersect(db,mn))<length(mn)){db<-c(db,setdiff(mn,intersect(db,mn)))}
+  if(length(db)-length(t)==length(mn)){blastres2[i,]<-blastres2[i,]}
+  else if(length(db)-length(t)<length(mn)){if(max(mn) %in% t){blastres2[i,10]<-(blastres2[i,10]-length(intersect(t,mn)))}}
+  else if(length(db)-length(t)<length(mn)){if(min(mn) %in% t){blastres2[i,9]<-(blastres2[i,9]+length(intersect(t,mn)))}}
+}
+#提取所有非冗余比对信息构建新的blast信息文件
+db<-NULL
+blastinof<-NULL
+for (i in 1:nrow(blastres2)) {
+  m<-blastres2[i,9]
+  n<-blastres2[i,10]
+  mn<-c(m:n)
+  t<-db
+  if(length(intersect(db,mn))==0 && length(mn)!=0){db<-c(db,mn)}
+  if(length(t)<length(db)){blastinof<-rbind(blastinof,blastres2[i,])}
+}
+write.table(blastinof,"assembly.txt")#用Notepade打开，上传服务器提取Spades组装序列
+#读取文件
+library(Biostrings)
+myblast1<-readDNAStringSet("finaltar.fasta")
+myblastinfor<-blastinof
+refseq<-readDNAStringSet("pCD_CP000311.fasta")
+mytargetblast<-DNAStringSet()
+mysorttargetblast<-DNAStringSet()
+myblast<-DNAStringSet()
+#尽可能组成全长减小gap
+newblastinfor<-NULL
+myblastinfor<-myblastinfor[-8,]#这里可能需要结合提取的fasta序列注释和处理好的blast结果删去一些结果，也可能不删
+for (i in 1:nrow(myblastinfor)) {
+  for (j in names(myblast1)) {
+    if(j==as.character(myblastinfor[i,1])){myblast<-c(myblast,DNAStringSet(myblast1[j]))}
+  }
+}
+for (i in 1:nrow(myblastinfor)) {
+  seq<-toString(DNAString(myblast[[i]][myblastinfor[i,7]:myblastinfor[i,8]]))
+  names(seq)<-names(myblast[i])
+  mytargetblast<-c(mytargetblast,DNAStringSet(seq))
+  newblastinfor<-c(newblastinfor,as.character(myblastinfor[i,1]),myblastinfor[i,9],myblastinfor[i,10])
+}
+newblastinfor<-matrix(newblastinfor,ncol = 3,byrow = T)
+#将不同的序列按照在参考基因组上的位置顺序排序
+newblastinfor<-newblastinfor[order(newblastinfor[,2]),] 
+mysorttargetblast<-DNAStringSet()
+for (i in 1:nrow(newblastinfor)) {
+  a<-newblastinfor[i,1]
+  seq2<-toString(DNAString(mytargetblast[[a]]))
+  names(seq2)<-names(mytargetblast[a])
+  mysorttargetblast<-c(mysorttargetblast,DNAStringSet(seq2))
+}
+assemblyout<-tempfile()
+writeXStringSet(mysorttargetblast,assemblyout)
+#修改输出fasta文件中低于50bp的序列，或者删除那些1bp的gap
+#上传服务器进行再次blast,进行唯一性输出，再将结果下载进行方向校正
+blastn -query xxx -db ~/path -out xxx -outfmt 6 -gapopen 1 -gapextend 1 -penalty -3 -word_size 11 -reward 1 -evalue 1e-10 -num_threads 30 -max_hsps 1
+#服务器中进行如上操作
+myadjinfor<-read.table("R_post_blast2")
+myassembly<-readDNAStringSet("assembly.fasta")
+seq3<-DNAStringSet()
+myadjassembly<-DNAStringSet()
+for (i in 1:nrow(myadjinfor)) {
+  if(myadjinfor[i,9]>myadjinfor[i,10]){seq3<-reverse(toString(DNAStringSet(myassembly[[i]])))}
+  else{seq3<-toString(DNAStringSet(myassembly[[i]]))}
+  names(seq3)<-names(myassembly[i])
+  myadjassembly<-c(myadjassembly,DNAStringSet(seq3))
+}
+adjassemblyout<-tempfile()
+writeXStringSet(myadjassembly,adjassemblyout)
