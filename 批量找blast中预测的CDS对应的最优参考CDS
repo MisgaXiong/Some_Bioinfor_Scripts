@@ -1,0 +1,28 @@
+#批量找blast中预测的CDS对应的最优参考CDS
+library(stringr)
+setwd('C:/Users/admin/DeskTop/bjblast')
+dir1<-dir('C:/Users/admin/DeskTop/bjblast/blast')
+for (k in 1:length(dir1)) {
+  bjblast<-read.table(dir1[k])
+  QUE<-list()
+  wd<-NULL
+  bjblastres<-NULL
+  for (i in 1:nrow(bjblast)) {
+    wd<-as.character(bjblast[i,1])
+    QUE[[wd]]<-c(QUE[[wd]],as.character(bjblast[i,2]),bjblast[i,3],bjblast[i,4],bjblast[i,5])
+  }
+  for (j in 1:length(QUE)) {
+    I<-NULL
+    L<-NULL
+    for (i in 1:(length(QUE[[j]])/4)) {
+      I<-c(I,as.numeric(QUE[[j]][4*i-2]))
+      L<-c(L,as.numeric(QUE[[j]][4*i-1]))
+    }
+    if(which(I==max(I))==which(L==max(L))){bjblastres<-c(bjblastres,names(QUE[j]),QUE[[j]][4*(which(L==max(L)))-3])}
+    else{bjblastres<-c(bjblastres,names(QUE[j]),"NA")}
+  }
+  bjblastres<-matrix(bjblastres,ncol = 2,byrow = T)
+  bjblastres<-as.data.frame(bjblastres)
+  N<-paste(dir1[k],"R",sep = "_")
+  write.table(bjblastres,N)
+}
